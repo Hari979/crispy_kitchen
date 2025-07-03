@@ -22,7 +22,8 @@ jobs:
       - name: Install Dependencies and Build
         run: |
           npm install
-          npm run build  # adjust if your build command is different
+          npm run build
+        working-directory: 2129_crispy_kitchen
 
       - name: Upload Build Files to EC2
         uses: appleboy/scp-action@v0.1.4
@@ -30,7 +31,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
-          source: "build/*"  # or "dist/*" depending on your framework
+          source: "2129_crispy_kitchen/build/*"
           target: "~/2129_crispy_kitchen_build"
 
       - name: Deploy to Apache Directory
