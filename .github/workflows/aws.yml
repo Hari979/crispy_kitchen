@@ -1,0 +1,57 @@
+name: Build and Deploy to EC2 (Apache)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Build and Deploy to EC2 (Apache)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Dependencies and Build
+        run: |
+          npm install
+          npm run build  # adjust if your build command is different
+
+      - name: Upload Build Files to EC2
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          source: "build/*"  # or "dist/*" depending on your framework
+          target: "~/2129_crispy_kitchen_build"
+
+      - name: Deploy to Apache Directory
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            # Optional: Backup current website
+            sudo mv /var/www/html /var/www/html_backup_$(date +%s) || true
+
+            # Deploy new build
+            sudo rm -rf /var/www/html
+            sudo mkdir -p /var/www/html
+            sudo cp -r ~/2129_crispy_kitchen_build/* /var/www/html/
+
+            # Fix permissions
+            sudo chown -R www-data:www-data /var/www/html
+
+            # Restart Apache
+            sudo systemctl restart apache2
+
+            echo "🚀 Deployed 2129_crispy_kitchen to Apache successfully!"
