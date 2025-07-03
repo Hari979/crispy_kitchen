@@ -1,4 +1,4 @@
-name: Build and Deploy to EC2 (Apache)
+name: Deploy Static Site to EC2 (Apache)
 
 on:
   push:
@@ -7,51 +7,39 @@ on:
 
 jobs:
   deploy:
-    name: Build and Deploy to EC2 (Apache)
+    name: Upload and Deploy to Apache
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Install Dependencies and Build
-        run: |
-          npm install
-          npm run build
-
-      - name: Upload Build Files to EC2
+      - name: Upload Project Files to EC2
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
-          source: "build/*"
+          source: "*"  # Or specify a folder like "public/*" if needed
           target: "~/2129_crispy_kitchen_build"
 
-      - name: Deploy to Apache Directory
+      - name: Deploy to Apache Web Directory
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
-            # Optional: Backup existing HTML directory
+            # Backup current site (optional)
             sudo mv /var/www/html /var/www/html_backup_$(date +%s) || true
 
-            # Deploy new site
+            # Deploy new files
             sudo rm -rf /var/www/html
             sudo mkdir -p /var/www/html
             sudo cp -r ~/2129_crispy_kitchen_build/* /var/www/html/
 
-            # Set correct permissions
+            # Set permissions
             sudo chown -R www-data:www-data /var/www/html
 
             # Restart Apache
-            sudo systemctl restart apache2
-
-            echo "🚀 Successfully deployed 2129_crispy_kitchen to Apache!"
+            sudo system
