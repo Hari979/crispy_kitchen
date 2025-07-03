@@ -20,7 +20,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
-          source: "*"  # Or specify a folder like "public/*" if needed
+          source: "./**/*"  # Recursively include all files and folders
           target: "/home/ubuntu/2129_crispy_kitchen_build"
 
       - name: Deploy to Apache Web Directory
@@ -36,10 +36,10 @@ jobs:
             # Deploy new files
             sudo rm -rf /var/www/html
             sudo mkdir -p /var/www/html
-            sudo cp -r ~/2129_crispy_kitchen_build/* /var/www/html/
+            sudo cp -r /home/ubuntu/2129_crispy_kitchen_build/* /var/www/html/
 
             # Set permissions
             sudo chown -R www-data:www-data /var/www/html
 
             # Restart Apache
-            sudo system
+            sudo systemctl restart apache2
