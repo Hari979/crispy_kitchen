@@ -23,7 +23,6 @@ jobs:
         run: |
           npm install
           npm run build
-        working-directory: 2129_crispy_kitchen
 
       - name: Upload Build Files to EC2
         uses: appleboy/scp-action@v0.1.4
@@ -31,7 +30,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
-          source: "2129_crispy_kitchen/build/*"
+          source: "build/*"
           target: "~/2129_crispy_kitchen_build"
 
       - name: Deploy to Apache Directory
@@ -41,18 +40,18 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
-            # Optional: Backup current website
+            # Optional: Backup existing HTML directory
             sudo mv /var/www/html /var/www/html_backup_$(date +%s) || true
 
-            # Deploy new build
+            # Deploy new site
             sudo rm -rf /var/www/html
             sudo mkdir -p /var/www/html
             sudo cp -r ~/2129_crispy_kitchen_build/* /var/www/html/
 
-            # Fix permissions
+            # Set correct permissions
             sudo chown -R www-data:www-data /var/www/html
 
             # Restart Apache
             sudo systemctl restart apache2
 
-            echo "🚀 Deployed 2129_crispy_kitchen to Apache successfully!"
+            echo "🚀 Successfully deployed 2129_crispy_kitchen to Apache!"
