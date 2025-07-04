@@ -1,4 +1,4 @@
-name: Deploy Static Site to EC2 (Apache)
+name: Deploy Static Site to EC2 (Nginx)
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    name: Upload and Deploy to Apache
+    name: Upload and Deploy to Nginx
     runs-on: ubuntu-latest
 
     steps:
@@ -28,7 +28,7 @@ jobs:
           source: "./**"
           target: "/home/ubuntu/2129_crispy_kitchen_build"
 
-      - name: Deploy to Apache Web Directory
+      - name: Deploy to Nginx Web Directory
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -43,8 +43,8 @@ jobs:
             sudo mkdir -p /var/www/html
             sudo cp -r /home/ubuntu/2129_crispy_kitchen_build/* /var/www/html/
 
-            # Set ownership for Apache
+            # Set ownership for Nginx
             sudo chown -R www-data:www-data /var/www/html
 
-            # Restart Apache
-            sudo systemctl restart apache2
+            # Restart Nginx
+            sudo systemctl restart nginx
