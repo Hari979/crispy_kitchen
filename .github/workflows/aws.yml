@@ -44,10 +44,10 @@ jobs:
           TMP_DIR=$(mktemp -d)
           curl -L -H "Authorization: token $REPO_PAT" \
             -o "$TMP_DIR/release.zip" \
-            "https://github.com/Brigita2020/SFIAdmin_Frontend/archive/refs/tags/$TAG.zip"
+            "https://github.com/Hari979/crispy_kitchen/archive/refs/tags/$TAG.zip"
 
           unzip "$TMP_DIR/release.zip" -d "$TMP_DIR"
-          EXTRACTED_FOLDER=$(find "$TMP_DIR" -maxdepth 1 -type d -name "SFIAdmin_Frontend-*")
+          EXTRACTED_FOLDER=$(find "$TMP_DIR" -maxdepth 1 -type d -name "crispy_kitchen-*")
 
           echo "Deploying to $LIVE_DIR"
           sudo mkdir -p "$LIVE_DIR"
