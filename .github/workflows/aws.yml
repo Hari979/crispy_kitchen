@@ -1,50 +1,62 @@
-name: Deploy Static Site to EC2 (Nginx)
+name: Deploy to EC2 on Tag Push
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - '*'  # Runs on all new tags
 
 jobs:
   deploy:
-    name: Upload and Deploy to Nginx
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: List files (for debug)
+      - name: Set up SSH access
         run: |
-          echo "Files in repo:"
-          ls -lah
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Upload Static Files to EC2
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_KEY }}
-          source: "./**"
-          target: "/home/ubuntu/2129_crispy_kitchen_build"
+      - name: Deploy on EC2 via SSH
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          REPO_PAT: ${{ secrets.REPO_PAT }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          echo '
+          set -e
 
-      - name: Deploy to Nginx Web Directory
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_KEY }}
-          script: |
-            # Backup existing site (optional)
-            sudo mv /var/www/html /var/www/html_backup_$(date +%s) || true
+          BASE_PATH="/var/www/admin/httpdocs"
+          LIVE_DIR="$BASE_PATH/SFI-Admin-UI"
+          DATE=$(date +%F)
+          COUNT=1
 
-            # Deploy new site
-            sudo rm -rf /var/www/html
-            sudo mkdir -p /var/www/html
-            sudo cp -r /home/ubuntu/2129_crispy_kitchen_build/* /var/www/html/
+          while [ -d "$BASE_PATH/SFI-Admin-UI-$DATE-$COUNT" ]; do
+            COUNT=$((COUNT + 1))
+          done
 
-            # Set ownership for Nginx
-            sudo chown -R www-data:www-data /var/www/html
+          BACKUP_DIR="$BASE_PATH/SFI-Admin-UI-$DATE-$COUNT"
+          echo "Backing up $LIVE_DIR to $BACKUP_DIR"
+          sudo mv "$LIVE_DIR" "$BACKUP_DIR"
 
-            # Restart Nginx
-            sudo systemctl restart nginx
+          echo "Downloading release ZIP for tag: $TAG"
+          TMP_DIR=$(mktemp -d)
+          curl -L -H "Authorization: token $REPO_PAT" \
+            -o "$TMP_DIR/release.zip" \
+            "https://github.com/Brigita2020/SFIAdmin_Frontend/archive/refs/tags/$TAG.zip"
+
+          unzip "$TMP_DIR/release.zip" -d "$TMP_DIR"
+          EXTRACTED_FOLDER=$(find "$TMP_DIR" -maxdepth 1 -type d -name "SFIAdmin_Frontend-*")
+
+          echo "Deploying to $LIVE_DIR"
+          sudo mkdir -p "$LIVE_DIR"
+          sudo rsync -av "$EXTRACTED_FOLDER"/ "$LIVE_DIR"/
+
+          rm -rf "$TMP_DIR"
+
+          echo "Restarting Apache..."
+          sudo systemctl restart apache2
+
+          echo "Deployment complete for tag $TAG"
+          ' | ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST 'REPO_PAT='"$REPO_PAT"' TAG='"$TAG"' bash -s'
