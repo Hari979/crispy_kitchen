@@ -45,4 +45,29 @@ jobs:
           echo "Creating fresh $LIVE_DIR directory"
           sudo mkdir -p "$LIVE_DIR"
 
-          echo "Downloading release ZIP for t
+          echo "Downloading release ZIP for tag: $TAG"
+
+          WORK_DIR="/home/ubuntu/deploy-$TAG"
+          ZIP_PATH="$WORK_DIR/release.zip"
+
+          rm -rf "$WORK_DIR"
+          mkdir -p "$WORK_DIR"
+
+          curl -L -H "Authorization: token $REPO_PAT" \
+            -o "$ZIP_PATH" \
+            "https://github.com/Hari979/crispy_kitchen/archive/refs/tags/$TAG.zip"
+
+          unzip "$ZIP_PATH" -d "$WORK_DIR"
+          EXTRACTED_FOLDER=$(find "$WORK_DIR" -maxdepth 1 -type d -name "crispy_kitchen-*")
+
+          echo "Deploying to $LIVE_DIR"
+          sudo rsync -av "$EXTRACTED_FOLDER"/ "$LIVE_DIR"/
+
+          echo "Cleaning up..."
+          rm -rf "$WORK_DIR"
+
+          echo "Restarting Apache..."
+          sudo systemctl restart apache2
+
+          echo "Deployment complete for tag $TAG"
+          ' | ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST 'REPO_PAT='"$REPO_PAT"' TAG='"$TAG"' bash -s'
