@@ -41,19 +41,26 @@ jobs:
           sudo mv "$LIVE_DIR" "$BACKUP_DIR"
 
           echo "Downloading release ZIP for tag: $TAG"
-          TMP_DIR=$(mktemp -d)
+
+          WORK_DIR="/home/ubuntu/deploy-$TAG"
+          ZIP_PATH="$WORK_DIR/release.zip"
+
+          rm -rf "$WORK_DIR"
+          mkdir -p "$WORK_DIR"
+
           curl -L -H "Authorization: token $REPO_PAT" \
-            -o "$TMP_DIR/release.zip" \
+            -o "$ZIP_PATH" \
             "https://github.com/Hari979/crispy_kitchen/archive/refs/tags/$TAG.zip"
 
-          unzip "$TMP_DIR/release.zip" -d "$TMP_DIR"
-          EXTRACTED_FOLDER=$(find "$TMP_DIR" -maxdepth 1 -type d -name "crispy_kitchen-*")
+          unzip "$ZIP_PATH" -d "$WORK_DIR"
+          EXTRACTED_FOLDER=$(find "$WORK_DIR" -maxdepth 1 -type d -name "crispy_kitchen-*")
 
           echo "Deploying to $LIVE_DIR"
           sudo mkdir -p "$LIVE_DIR"
           sudo rsync -av "$EXTRACTED_FOLDER"/ "$LIVE_DIR"/
 
-          rm -rf "$TMP_DIR"
+          echo "Cleaning up..."
+          rm -rf "$WORK_DIR"
 
           echo "Restarting Apache..."
           sudo systemctl restart apache2
