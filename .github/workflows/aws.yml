@@ -3,7 +3,7 @@ name: Deploy to EC2 on Tag Push
 on:
   push:
     tags:
-      - '*'  # Runs on all new tags
+      - '*' # Runs on all new tags
 
 jobs:
   deploy:
@@ -17,57 +17,62 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy on EC2 via SSH
+      - name: Deploy on EC2 via SSH (Zero Downtime + Backup Naming)
         env:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
           REPO_PAT: ${{ secrets.REPO_PAT }}
           TAG: ${{ github.ref_name }}
+          REPO_FULL: ${{ github.repository }} # owner/repo
         run: |
           echo '
           set -e
 
           BASE_PATH="/var/www/admin/httpdocs"
-          LIVE_DIR="$BASE_PATH/SFI-Admin-UI"
+          APP_NAME="SFI-Admin-UI"
+          CURRENT_LINK="$BASE_PATH/current"
+
           DATE=$(date +%F)
           COUNT=1
-
-          while [ -d "$BASE_PATH/SFI-Admin-UI-$DATE-$COUNT" ]; do
+          while [ -d "$BASE_PATH/${APP_NAME}-$DATE-$COUNT" ]; do
             COUNT=$((COUNT + 1))
           done
+          BACKUP_DIR="$BASE_PATH/${APP_NAME}-$DATE-$COUNT"
 
-          BACKUP_DIR="$BASE_PATH/SFI-Admin-UI-$DATE-$COUNT"
-          echo "Backing up $LIVE_DIR to $BACKUP_DIR"
-          if [ -d "$LIVE_DIR" ]; then
-            sudo mv "$LIVE_DIR" "$BACKUP_DIR"
+          echo "Creating backup directory: $BACKUP_DIR"
+          if [ -L "$CURRENT_LINK" ] && [ -d "$(readlink -f $CURRENT_LINK)" ]; then
+            sudo cp -al "$(readlink -f $CURRENT_LINK)" "$BACKUP_DIR"
           fi
 
-          echo "Creating fresh $LIVE_DIR directory"
-          sudo mkdir -p "$LIVE_DIR"
+          # Prepare new release dir
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          NEW_RELEASE_DIR="$BASE_PATH/releases/$TIMESTAMP"
+          sudo mkdir -p "$NEW_RELEASE_DIR"
 
           echo "Downloading release ZIP for tag: $TAG"
-
-          WORK_DIR="/home/ubuntu/deploy-$TAG"
-          ZIP_PATH="$WORK_DIR/release.zip"
-
-          rm -rf "$WORK_DIR"
-          mkdir -p "$WORK_DIR"
-
+          TMP_ZIP="/tmp/release-$TAG.zip"
           curl -L -H "Authorization: token $REPO_PAT" \
-            -o "$ZIP_PATH" \
-            "https://github.com/Hari979/crispy_kitchen/archive/refs/tags/$TAG.zip"
+            -o "$TMP_ZIP" \
+            "https://github.com/$REPO_FULL/archive/refs/tags/$TAG.zip"
 
-          unzip "$ZIP_PATH" -d "$WORK_DIR"
-          EXTRACTED_FOLDER=$(find "$WORK_DIR" -maxdepth 1 -type d -name "crispy_kitchen-*")
+          echo "Unzipping release..."
+          sudo unzip -q "$TMP_ZIP" -d "$NEW_RELEASE_DIR"
+          sudo rm "$TMP_ZIP"
 
-          echo "Deploying to $LIVE_DIR"
-          sudo rsync -av "$EXTRACTED_FOLDER"/ "$LIVE_DIR"/
+          EXTRACTED_FOLDER=$(find "$NEW_RELEASE_DIR" -maxdepth 1 -type d -name "$(basename $REPO_FULL)-*")
+          if [ -d "$EXTRACTED_FOLDER" ]; then
+            sudo rsync -a "$EXTRACTED_FOLDER"/ "$NEW_RELEASE_DIR"/
+            sudo rm -rf "$EXTRACTED_FOLDER"
+          fi
 
-          echo "Cleaning up..."
-          rm -rf "$WORK_DIR"
+          echo "Switching current symlink..."
+          sudo ln -sfn "$NEW_RELEASE_DIR" "$CURRENT_LINK"
 
           echo "Restarting Apache..."
           sudo systemctl restart apache2
 
           echo "Deployment complete for tag $TAG"
-          ' | ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST 'REPO_PAT='"$REPO_PAT"' TAG='"$TAG"' bash -s'
+          echo "Current release: $(readlink -f $CURRENT_LINK)"
+          echo "Backup stored at: $BACKUP_DIR"
+          ' | ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST \
+            'REPO_PAT='"$REPO_PAT"' TAG='"$TAG"' REPO_FULL='"$REPO_FULL"' bash -s'
