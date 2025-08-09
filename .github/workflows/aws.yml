@@ -15,21 +15,21 @@ jobs:
           set -e
 
           BASE_PATH="/var/www/apps/httpdocs"
-          LIVE_DIR="$BASE_PATH/SFI-UI"
+          LIVE_DIR="$BASE_PATH/SFI-Admin-UI"
           DATE=$(date +%F)
           COUNT=1
 
           # Find unique backup folder name
-          while [ -d "$BASE_PATH/SFI-UI-$DATE-$COUNT" ]; do
+          while [ -d "$BASE_PATH/SFI-Admin-UI-$DATE-$COUNT" ]; do
             COUNT=$((COUNT + 1))
           done
-          BACKUP_DIR="$BASE_PATH/SFI-UI-$DATE-$COUNT"
+          BACKUP_DIR="$BASE_PATH/SFI-Admin-UI-$DATE-$COUNT"
 
-          echo "Backing up existing SFI-UI to: $BACKUP_DIR"
+          echo "Backing up existing SFI-Admin-UI to: $BACKUP_DIR"
           mv "$LIVE_DIR" "$BACKUP_DIR"
 
           echo "Cloning new tag to temp folder"
-          TEMP_DIR="/tmp/SFI-UI-deploy"
+          TEMP_DIR="/tmp/SFI-Admin-UI-deploy"
           rm -rf "$TEMP_DIR"
           git clone --depth 1 --branch "${GITHUB_REF_NAME}" https://github.com/<your-org>/SFIData_FrontEndApp.git "$TEMP_DIR"
 
