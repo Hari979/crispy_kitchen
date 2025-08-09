@@ -1,22 +1,19 @@
-name: Deploy SFI-UI
+name: Deploy on Tag Push
 
 on:
-  workflow_dispatch:
-    inputs:
-      release_zip:
-        description: "Path or URL to release.zip file"
-        required: true
+  push:
+    tags:
+      - '*'  # triggers on any tag
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted   # ✅ Use self-hosted runner
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Set variables
+      - name: Deploy source code to server
         run: |
+          set -e
+
           BASE_PATH="/var/www/apps/httpdocs"
           LIVE_DIR="$BASE_PATH/SFI-UI"
           DATE=$(date +%F)
@@ -28,27 +25,16 @@ jobs:
           done
           BACKUP_DIR="$BASE_PATH/SFI-UI-$DATE-$COUNT"
 
-          echo "BASE_PATH=$BASE_PATH" >> $GITHUB_ENV
-          echo "LIVE_DIR=$LIVE_DIR" >> $GITHUB_ENV
-          echo "BACKUP_DIR=$BACKUP_DIR" >> $GITHUB_ENV
-
-      - name: Backup existing live folder
-        run: |
           echo "Backing up existing SFI-UI to: $BACKUP_DIR"
-          sudo mv "$LIVE_DIR" "$BACKUP_DIR" || echo "No existing deployment found"
+          mv "$LIVE_DIR" "$BACKUP_DIR"
 
-      - name: Download release zip
-        run: |
+          echo "Cloning new tag to temp folder"
           TEMP_DIR="/tmp/SFI-UI-deploy"
           rm -rf "$TEMP_DIR"
-          mkdir -p "$TEMP_DIR"
-          curl -L "${{ github.event.inputs.release_zip }}" -o "$TEMP_DIR/release.zip"
-          unzip "$TEMP_DIR/release.zip" -d "$TEMP_DIR"
+          git clone --depth 1 --branch "${GITHUB_REF_NAME}" https://github.com/<your-org>/SFIData_FrontEndApp.git "$TEMP_DIR"
 
-      - name: Deploy to live directory
-        run: |
-          sudo cp -r /tmp/SFI-UI-deploy/* "$LIVE_DIR"
+          echo "Copying source folder to live directory"
+          cp -r "$TEMP_DIR" "$LIVE_DIR"
 
-      - name: Restart Apache
-        run: |
+          echo "Restarting Apache"
           sudo systemctl restart apache2
