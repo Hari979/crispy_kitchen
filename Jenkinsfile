@@ -9,7 +9,9 @@ pipeline {
             causeString: 'Triggered by GitHub release: $RELEASE_TAG',
             token: 'github-release-trigger',
             printContributedVariables: true,
-            printPostContent: true
+            printPostContent: true,
+            regexpFilterText: '$.action',
+            regexpFilterExpression: 'published'
         )
     }
 
@@ -27,15 +29,11 @@ pipeline {
                 script {
                     def DATE = sh(script: "date +%F", returnStdout: true).trim()
                     def COUNT = 1
-                    def BACKUP_DIR = ""
-
                     while (fileExists("${BASE_PATH}/SFI-Admin-UI-${DATE}-${COUNT}")) {
                         COUNT++
                     }
-
-                    BACKUP_DIR = "${BASE_PATH}/SFI-Admin-UI-${DATE}-${COUNT}"
+                    def BACKUP_DIR = "${BASE_PATH}/SFI-Admin-UI-${DATE}-${COUNT}"
                     echo "Backing up ${LIVE_DIR} to ${BACKUP_DIR}"
-
                     sh """
                         if [ -d "${LIVE_DIR}" ]; then
                             sudo mv "${LIVE_DIR}" "${BACKUP_DIR}"
@@ -51,25 +49,17 @@ pipeline {
                 script {
                     def WORK_DIR = "/home/ubuntu/deploy-${TAG}"
                     def ZIP_PATH = "${WORK_DIR}/release.zip"
-
-                    // Download and unzip the release
                     sh """
                         rm -rf "${WORK_DIR}"
                         mkdir -p "${WORK_DIR}"
-
                         curl -L -o "${ZIP_PATH}" \
                           "https://github.com/${REPO_OWNER}/${REPO_NAME}/archive/refs/tags/${TAG}.zip"
-
                         unzip "${ZIP_PATH}" -d "${WORK_DIR}"
                     """
-
-                    // Find the extracted folder
                     def EXTRACTED_FOLDER = sh(
                         script: "find ${WORK_DIR} -maxdepth 1 -type d -name '${REPO_NAME}-*'",
                         returnStdout: true
                     ).trim()
-
-                    // Deploy and cleanup
                     sh """
                         sudo rsync -av "${EXTRACTED_FOLDER}/" "${LIVE_DIR}/"
                         rm -rf "${WORK_DIR}"
