@@ -2,7 +2,6 @@ pipeline {
     agent { label 'test-frontend-agent' }
 
     triggers {
-        // Webhook trigger — Jenkins will be triggered by GitHub release events
         GenericTrigger(
             genericVariables: [
                 [key: 'RELEASE_TAG', value: '$.release.tag_name']
@@ -39,7 +38,7 @@ pipeline {
 
                     sh """
                         if [ -d "${LIVE_DIR}" ]; then
-                          sudo mv "${LIVE_DIR}" "${BACKUP_DIR}"
+                            sudo mv "${LIVE_DIR}" "${BACKUP_DIR}"
                         fi
                         sudo mkdir -p "${LIVE_DIR}"
                     """
@@ -53,19 +52,26 @@ pipeline {
                     def WORK_DIR = "/home/ubuntu/deploy-${TAG}"
                     def ZIP_PATH = "${WORK_DIR}/release.zip"
 
+                    // Download and unzip the release
                     sh """
                         rm -rf "${WORK_DIR}"
                         mkdir -p "${WORK_DIR}"
 
-                        curl -L \
-                          -o "${ZIP_PATH}" \
+                        curl -L -o "${ZIP_PATH}" \
                           "https://github.com/${REPO_OWNER}/${REPO_NAME}/archive/refs/tags/${TAG}.zip"
 
-                        sh "unzip ${ZIP_PATH} -d ${WORK_DIR}"
-                        EXTRACTED_FOLDER=$(find "${WORK_DIR}" -maxdepth 1 -type d -name "${REPO_NAME}-*")
+                        unzip "${ZIP_PATH}" -d "${WORK_DIR}"
+                    """
 
-                        sudo rsync -av "$EXTRACTED_FOLDER"/ "${LIVE_DIR}"/
+                    // Find the extracted folder
+                    def EXTRACTED_FOLDER = sh(
+                        script: "find ${WORK_DIR} -maxdepth 1 -type d -name '${REPO_NAME}-*'",
+                        returnStdout: true
+                    ).trim()
 
+                    // Deploy and cleanup
+                    sh """
+                        sudo rsync -av "${EXTRACTED_FOLDER}/" "${LIVE_DIR}/"
                         rm -rf "${WORK_DIR}"
                         sudo systemctl restart apache2
                     """
