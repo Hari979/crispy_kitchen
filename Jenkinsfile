@@ -4,15 +4,17 @@ pipeline {
     triggers {
         GenericTrigger(
             genericVariables: [
-                [key: 'GIT_REF', value: '$.ref'],
-                [key: 'GIT_COMMIT', value: '$.after']
+                [key: 'action', value: '$.action'],
+                [key: 'release_tag', value: '$.release.tag_name'],
+                [key: 'release_name', value: '$.release.name'],
+                [key: 'GIT_COMMIT', value: '$.release.target_commitish'] // ✅ commit SHA from release payload
             ],
-            causeString: 'Triggered on push to $GIT_REF',
-            token: 'github-push-trigger',                // Your webhook token here
+            causeString: 'Triggered by GitHub Release: $release_tag',
+            token: 'github-release-trigger',
             printContributedVariables: true,
             printPostContent: true,
-            regexpFilterText: '$.ref',
-            regexpFilterExpression: '^refs/heads/main$'  // Only trigger on main branch
+            regexpFilterExpression: '^published$',
+            regexpFilterText: '$action'
         )
     }
 
@@ -21,17 +23,16 @@ pipeline {
         LIVE_DIR = "${BASE_PATH}/SFI-Admin-UI"
         REPO_OWNER = "Hari979"
         REPO_NAME = "crispy_kitchen"
-        COMMIT = "${env.GIT_COMMIT ?: 'undefined'}"
     }
 
     stages {
         stage('Validate Commit') {
             steps {
                 script {
-                    if (COMMIT == 'undefined' || COMMIT.trim() == '') {
+                    if (!env.GIT_COMMIT || env.GIT_COMMIT.trim() == '') {
                         error("❌ GIT_COMMIT is missing! Check webhook payload.")
                     } else {
-                        echo "✅ Detected commit: ${COMMIT}"
+                        echo "✅ Detected commit: ${env.GIT_COMMIT}"
                     }
                 }
             }
@@ -60,16 +61,16 @@ pipeline {
         stage('Download and Deploy') {
             steps {
                 script {
-                    def WORK_DIR = "/home/ubuntu/deploy-${COMMIT}"
+                    def WORK_DIR = "/home/ubuntu/deploy-${env.GIT_COMMIT}"
                     def ZIP_PATH = "${WORK_DIR}/release.zip"
-                    echo "⬇️ Downloading commit ZIP for ${COMMIT}"
+                    echo "⬇️ Downloading commit ZIP for ${env.GIT_COMMIT}"
 
                     sh """
                         rm -rf "${WORK_DIR}"
                         mkdir -p "${WORK_DIR}"
 
                         curl -L -o "${ZIP_PATH}" \
-                          "https://github.com/${REPO_OWNER}/${REPO_NAME}/archive/${COMMIT}.zip"
+                          "https://github.com/${REPO_OWNER}/${REPO_NAME}/archive/${env.GIT_COMMIT}.zip"
 
                         unzip "${ZIP_PATH}" -d "${WORK_DIR}"
                     """
@@ -87,7 +88,7 @@ pipeline {
                         sudo systemctl restart apache2
                     """
 
-                    echo "✅ Deployment completed for commit ${COMMIT}"
+                    echo "✅ Deployment completed for commit ${env.GIT_COMMIT}"
                 }
             }
         }
