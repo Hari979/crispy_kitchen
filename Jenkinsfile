@@ -61,7 +61,7 @@ pipeline {
                           -o "${ZIP_PATH}" \
                           "https://github.com/${REPO_OWNER}/${REPO_NAME}/archive/refs/tags/${TAG}.zip"
 
-                        unzip "${ZIP_PATH}" -d "${WORK_DIR}"
+                        sh "unzip '${ZIP_PATH}' -d '${WORK_DIR}'"
                         EXTRACTED_FOLDER=$(find "${WORK_DIR}" -maxdepth 1 -type d -name "${REPO_NAME}-*")
 
                         sudo rsync -av "$EXTRACTED_FOLDER"/ "${LIVE_DIR}"/
