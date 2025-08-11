@@ -13,7 +13,7 @@ pipeline {
             token: 'github-release-trigger',
             printContributedVariables: true,
             printPostContent: true,
-            regexpFilterExpression: '^published$',
+            regexpFilterExpression: '^created$',
             regexpFilterText: '$action'
         )
     }
