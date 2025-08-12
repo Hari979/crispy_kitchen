@@ -1,9 +1,6 @@
 pipeline {
     agent { label 'test-frontend-agent' }
 
-    tools {
-        hudson.plugins.sonar.SonarRunnerInstallation('sonarqube-scanner')
-    }
 
     triggers {
         GenericTrigger(
