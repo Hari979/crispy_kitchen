@@ -2,7 +2,7 @@ pipeline {
     agent { label 'test-frontend-agent' }
 
     tools {
-        SonarRunnerInstallation 'sonarqube-scanner'
+        hudson.plugins.sonar.SonarRunnerInstallation('sonarqube-scanner')
     }
 
     triggers {
