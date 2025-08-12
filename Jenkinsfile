@@ -48,7 +48,7 @@ pipeline {
                 script {
                     echo "🔍 Running SonarQube Analysis for commit ${env.GIT_COMMIT}"
                 }
-                withSonarQubeEnv('sonarqube') { // 'sonarqube' should match Jenkins SonarQube server name
+                withSonarQubeEnv('sonarqube-server') { // 'sonarqube' should match Jenkins SonarQube server name
                     sh """
                         sonar-scanner \
                         -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
