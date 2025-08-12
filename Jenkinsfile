@@ -2,7 +2,7 @@ pipeline {
     agent { label 'test-frontend-agent' }
 
     tools {
-        sonarQubeScanner 'sonarqube-scanner'  // Name must match "Manage Jenkins → Tools → SonarQube Scanner"
+        sonarQubeScanner 'sonarqube-scanner'
     }
 
     triggers {
