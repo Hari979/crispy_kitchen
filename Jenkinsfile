@@ -1,7 +1,6 @@
 pipeline {
     agent { label 'test-frontend-agent' }
 
-
     triggers {
         GenericTrigger(
             genericVariables: [
@@ -48,18 +47,22 @@ pipeline {
             steps {
                 script {
                     echo "🔍 Running SonarQube Analysis for commit ${env.GIT_COMMIT}"
-                }
-                withSonarQubeEnv('sonarqube-server') { // 'sonarqube' = Jenkins SonarQube server name
-                    sh """
-                        sonar-scanner \
-                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                        -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
-                        -Dsonar.projectVersion=${SONAR_PROJECT_VERSION} \
-                        -Dsonar.sources=. \
-                        -Dsonar.sourceEncoding=UTF-8 \
-                        -Dsonar.host.url=$SONAR_HOST_URL \
-                        -Dsonar.login=$SONAR_AUTH_TOKEN
-                    """
+
+                    // Get the scanner path from Jenkins tools
+                    def scannerHome = tool 'sonar-scanner' // Name from Global Tool Configuration
+
+                    withSonarQubeEnv('sonarqube-server') { // Name from Manage Jenkins → Configure System
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
+                            -Dsonar.projectVersion=${SONAR_PROJECT_VERSION} \
+                            -Dsonar.sources=. \
+                            -Dsonar.sourceEncoding=UTF-8 \
+                            -Dsonar.host.url=$SONAR_HOST_URL \
+                            -Dsonar.login=$SONAR_AUTH_TOKEN
+                        """
+                    }
                 }
             }
         }
