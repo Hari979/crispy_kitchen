@@ -23,6 +23,11 @@ pipeline {
         LIVE_DIR = "${BASE_PATH}/SFI-Admin-UI"
         REPO_OWNER = "Hari979"
         REPO_NAME = "crispy_kitchen"
+
+        // SonarQube
+        SONAR_PROJECT_KEY = "crispy_kitchen"
+        SONAR_PROJECT_NAME = "Crispy Kitchen Frontend"
+        SONAR_PROJECT_VERSION = "${env.release_tag ?: '1.0'}"
     }
 
     stages {
@@ -34,6 +39,34 @@ pipeline {
                     } else {
                         echo "✅ Detected commit: ${env.GIT_COMMIT}"
                     }
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    echo "🔍 Running SonarQube Analysis for commit ${env.GIT_COMMIT}"
+                }
+                withSonarQubeEnv('sonarqube') { // 'sonarqube' should match Jenkins SonarQube server name
+                    sh """
+                        sonar-scanner \
+                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                        -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
+                        -Dsonar.projectVersion=${SONAR_PROJECT_VERSION} \
+                        -Dsonar.sources=. \
+                        -Dsonar.sourceEncoding=UTF-8 \
+                        -Dsonar.host.url=$SONAR_HOST_URL \
+                        -Dsonar.login=$SONAR_AUTH_TOKEN
+                    """
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
