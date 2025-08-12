@@ -1,13 +1,17 @@
 pipeline {
     agent { label 'test-frontend-agent' }
 
+    tools {
+        sonarQubeScanner 'sonarqube-scanner'  // Name must match "Manage Jenkins → Tools → SonarQube Scanner"
+    }
+
     triggers {
         GenericTrigger(
             genericVariables: [
                 [key: 'action', value: '$.action'],
                 [key: 'release_tag', value: '$.release.tag_name'],
                 [key: 'release_name', value: '$.release.name'],
-                [key: 'GIT_COMMIT', value: '$.release.target_commitish'] // ✅ commit SHA from release payload
+                [key: 'GIT_COMMIT', value: '$.release.target_commitish']
             ],
             causeString: 'Triggered by GitHub Release: $release_tag',
             token: 'github-release-trigger',
@@ -48,7 +52,7 @@ pipeline {
                 script {
                     echo "🔍 Running SonarQube Analysis for commit ${env.GIT_COMMIT}"
                 }
-                withSonarQubeEnv('sonarqube-server') { // 'sonarqube' should match Jenkins SonarQube server name
+                withSonarQubeEnv('sonarqube') { // 'sonarqube' = Jenkins SonarQube server name
                     sh """
                         sonar-scanner \
                         -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
